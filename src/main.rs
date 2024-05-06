@@ -15,7 +15,7 @@ fn main() {
     let tp = ThreadPool::new(4);
 
     for stream in listener.incoming() {
-        ThreadPool::execute(|| handle_stream(stream.unwrap()));
+        tp.execute(|| handle_stream(stream.unwrap()));
     }
 }
 
