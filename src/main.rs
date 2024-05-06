@@ -6,12 +6,16 @@ use std::{
     time::Duration,
 };
 
+use web_server::ThreadPool;
+
 fn main() {
     let addr = "127.0.0.1:7878";
     let listener = TcpListener::bind(addr).unwrap();
 
+    let tp = ThreadPool::new(4);
+
     for stream in listener.incoming() {
-        thread::spawn(|| handle_stream(stream.unwrap()));
+        ThreadPool::execute(|| handle_stream(stream.unwrap()));
     }
 }
 
