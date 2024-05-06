@@ -2,6 +2,8 @@ use std::{
     fs,
     io::{BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
+    thread::{self, sleep},
+    time::Duration,
 };
 
 fn main() {
@@ -9,8 +11,7 @@ fn main() {
     let listener = TcpListener::bind(addr).unwrap();
 
     for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        handle_stream(stream);
+        thread::spawn(|| handle_stream(stream.unwrap()));
     }
 }
 
@@ -18,10 +19,13 @@ fn handle_stream(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let request_line = buf_reader.lines().next().unwrap().unwrap();
 
-    let (status_line, content) = if request_line == "GET / HTTP/1.1" {
-        ("HTTP/1.1 200 OK", "index.html")
-    } else {
-        ("HTTP/1.1 404 NOT FOUND", "404.html")
+    let (status_line, content) = match request_line.as_str() {
+        "GET / HTTP/1.1" => ("HTTP/1.1 200 OK", "index.html"),
+        "GET /sleep HTTP/1.1" => {
+            sleep(Duration::from_secs(10));
+            ("HTTP/1.1 200 OK", "index.html")
+        }
+        _ => ("HTTP/1.1 404 NOT FOUND", "404.html"),
     };
 
     let content = fs::read_to_string(content).unwrap();
