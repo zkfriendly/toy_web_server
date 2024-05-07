@@ -12,7 +12,7 @@ fn main() {
     let addr = "127.0.0.1:7878";
     let listener = TcpListener::bind(addr).unwrap();
 
-    let tp = ThreadPool::new(4);
+    let tp = ThreadPool::new(2);
 
     for stream in listener.incoming() {
         tp.execute(|| handle_stream(stream.unwrap()));

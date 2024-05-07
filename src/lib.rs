@@ -1,8 +1,12 @@
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
+    sender: mpsc::Sender<Job>,
 }
+
+type Job = Box<dyn FnOnce() + Send + 'static>;
 
 impl ThreadPool {
     /// Create a new ThreadPool.
@@ -16,20 +20,21 @@ impl ThreadPool {
         assert!(size > 0);
 
         let mut workers = Vec::with_capacity(size);
+        let (sender, receiver) = mpsc::channel();
+        let receiver = Arc::new(Mutex::new(receiver));
 
         for id in 0..size {
-            workers[id] = Worker::new(id);
+            workers.push(Worker::new(id, Arc::clone(&receiver)));
         }
 
-        ThreadPool { workers }
+        ThreadPool { workers, sender }
     }
 
     pub fn execute<F>(&self, f: F)
     where
         F: FnOnce() + Send + 'static,
     {
-        thread::spawn(|| f());
-        println!("Executing a function");
+        self.sender.send(Box::new(f)).unwrap();
     }
 }
 struct Worker {
@@ -38,10 +43,12 @@ struct Worker {
 }
 
 impl Worker {
-    pub fn new(id: usize) -> Self {
-        Worker {
-            id,
-            thread: thread::spawn(|| ()),
-        }
+    pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Self {
+        let thread = thread::spawn(move || loop {
+            println!("executing job {}", id);
+            let job = receiver.lock().unwrap().recv().unwrap();
+            job();
+        });
+        Worker { id, thread }
     }
 }
